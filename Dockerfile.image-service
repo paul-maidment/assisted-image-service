@@ -1,5 +1,28 @@
+ARG RHEL_VERSION=9
+
+## Golang
+FROM registry.access.redhat.com/ubi$RHEL_VERSION/go-toolset:1.21 AS golang
+
+ADD . /app
+WORKDIR /app
+
+# Licenses
+RUN go install github.com/google/go-licenses@v1.6.0
+RUN ${HOME}/go/bin/go-licenses save --save_path /tmp/licenses ./...
+
 ## Build
-FROM registry.ci.openshift.org/openshift/release:golang-1.21 as builder
+FROM quay.io/centos/centos:stream$RHEL_VERSION as builder
+
+ENV GOROOT=/usr/lib/golang
+ENV GOPATH=/opt/app-root/src/go
+ENV PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+
+COPY --from=golang $GOPATH $GOPATH
+COPY --from=golang $GOROOT $GOROOT
+
+RUN chmod 775 -R $GOPATH && chmod 775 -R $GOROOT
+
+RUN dnf install gcc openssl-devel -y
 
 COPY go.mod go.mod
 COPY go.sum go.sum
